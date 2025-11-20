@@ -1,22 +1,61 @@
 .data
 CHAR_POS: 	.half 0,192
 OLD_CHAR_POS: 	.half 0,0
-SWORD_ACTIVE: 	.word 1			#flag da espada
+SWORD_ACTIVE: 	.word 1		#flag da espada
 SWORD_POS:	.half 32,192
-GAME_STATE:	.word 0			#flag do estado do jogo (0=jogando,1=pegando item)
-ITEM_TIMER:	.word 0			#tempo que a pose de pegar item vai ficar e tempo do áudio
-##DRONE##
-DRONE_POS:	.half 288,160		#posição inicial
-DRONE_VEL:	.word 4			#Velocidade no eixo Y
-DRONE_FLAG:	.word 1
+GAME_STATE:	.word 0		#flag do estado do jogo
+ITEM_TIMER:	.word 0		#tempo que a pose de pegar item vai ficar
+#VIDA/DANO#
+HEALTH_PLAYER: 	.word 3		#3 de vida inicial
+INV_TIMER: 	.word 0		#tempo de invencibilidade
 
-######EDITADO JL######
-##VIDA/DANO#
-HEALTH_PLAYER: 	.word 3			#começa com 3 de vida
-INV_TIMER: 	.word 0			#tempo de invencibilidade (0=não invencivel)
-######EDITADO JL######
+PLAYER_ATT:	.word 0		#0= n atacando 1= atacando
+ATT_TIMER:	.word 0		#frames do ataque
+
+MAP_WIDTH: 	.word 20	#largura do mapa em blocos
+
+#Dados dos Inimigos
+DRONE_POS:	.half 288,160	#posicao inicial
+DRONE_VEL:	.word 4		#velocidade no eixo Y
+DRONE_FLAG:	.word 1		#1=vivo 0=morto
+
+#Controle de Níveis
+CURRENT_LEVEL:       .word 1	#nivel atual
+CURRENT_MAP_BG_PTR:  .word 0	#ponteiro para o background atual
+CURRENT_MAP_COL_PTR: .word 0	#ponteiro para o mapa de colisao
+
+#Endereços			#lista de endereços dos backgrounds
+LEVEL_BG_LIST:
+    .word map1_data, map2_data, map3_data, map4_data
+
+LEVEL_COL_LIST:			#lista de endereços dos mapas de colisão
+    .word col_map1, col_map2, col_map3, col_map4
+#Mapas
+map1_data:
+    .include "map1.data"
+col_map1:
+    .include "collision_map.data"
+
+map2_data:
+    .include "map2.data"
+col_map2:
+    .include "collision_map2.data"
+map3_data:
+    .include "map3.data"
+col_map3:
+    .include "collision_map3.data"
+map4_data:
+    .include "map4.data"
+col_map4:
+    .include "collision_map4.data"
+
+
+
+
+
 .text
-SETUP:		
+SETUP:
+		call LOAD_LEVEL		#carrega os ponteiros dos mapas
 		
 	
 		
@@ -31,26 +70,44 @@ GAME_LOOP:	la t0,GAME_STATE	#carrega o estado do jogo
 		j END_FRAME_PROCESSING
 		
 STATE_PLAYING:	
-######EDITADO JL######
 		la t0,INV_TIMER		#carregando tempo de invencibilidade
 		lw t1,0(t0)		
 		beqz t1,SKIP_INV_DECREMENT	#se for 0 n ta mais invencivel
 		addi t1,t1,-1		#decrementando tempo
 		sw t1,0(t0)
 SKIP_INV_DECREMENT:
-######EDITADO JL######
+
+		la t0,ATT_TIMER			#carrega timer de ataque
+		lw t1,0(t0)
+		beqz t1,SKIP_ATT_DECREMENT	#se for 0 n faz nada
 		
-		la a0,map1		#carregando o mapa para printar
+		addi t1,t1,-1			#decrementa tempo
+		sw t1,0(t0)
+		
+		beqz t1,END_ATT_ANIMATION	#se for 0 termina o aaque
+		j SKIP_ATT_DECREMENT		
+		
+END_ATT_ANIMATION:
+		la t0,PLAYER_ATT		#fim do ataque
+		sw zero,0(t0)
+		
+SKIP_ATT_DECREMENT:
+
+		call CHECK_ATT_COLLISION		#verifica se o ataque ta pegando na hitbox
+		
+		la a0,CURRENT_MAP_BG_PTR		#carregando o mapa para printar
+		lw a0,0(a0)
 		li a1,0
 		li a2,0
 		mv a3,s0
 		call PRINT
 		
-	
-
+		call DRAW_SCENARIO
+		
 		call KEY2
 		call UPDATE_DRONE
 		call CHECK_DRONE_COLLISION
+		call CHECK_INTERACTION
 
 		
 		
@@ -80,10 +137,13 @@ SKIP_SWORD_DRAW:
 		call PRINT
 		
 SKIP_DRONE_DRAW:
-######EDITADO JL######
 		la t0,INV_TIMER		#carregando tempo de invencibilidade
 		lw t1,0(t0)
 		bnez t1,CHECK_BLINK	#se n for zero ainda ta invencivel vai piscar
+		
+		la t0,PLAYER_ATT
+		lw t1,0(t0)
+		bnez t1,DRAW_ATT
 		
 		la t0,CHAR_POS		#carregando personagem pra printar
 		la a0,char
@@ -105,11 +165,18 @@ DRAW_INVINCIBLE:
 		lh a2,2(t0)
 		mv a3,s0
 		call PRINT
+		j SKIP_CHAR_DRAW
+		
+DRAW_ATT:	la t0,CHAR_POS		#carrega posição pra atacar
+		la a0,teste		#substituir aqui pela sprite de ataque
+		lh a1,0(t0)
+		lh a2,2(t0)
+		mv a3,s0
+		call PRINT
+		j SKIP_CHAR_DRAW
+		
 		
 SKIP_CHAR_DRAW:
-######EDITADO JL######
-
-		
 		la t0,SWORD_ACTIVE
 		lw t1,0(t0)
 		beqz t1,SKIP_COLLISION
@@ -150,11 +217,14 @@ SKIP_COLLISION:
 		j END_FRAME_PROCESSING
 		
 STATE_ITEM_COLLECTED:
-		la a0,map1		#carregando o mapa para printar
+		la a0,CURRENT_MAP_BG_PTR		#carregando o mapa para printar
+		lw a0,0(a0)
 		li a1,0
 		li a2,0
 		mv a3,s0
 		call PRINT
+		
+		call DRAW_SCENARIO			#redesenha as coisas paradas
 		
 		la t0,DRONE_FLAG
 		lw t1,0(t0)
@@ -166,6 +236,8 @@ STATE_ITEM_COLLECTED:
 		lh a2,2(t0)
 		mv a3,s0
 		call PRINT
+		
+		
 SKIP_DRONE_POSE:
 	
 		la t0,ITEM_TIMER	#carregando tempo de coleta do item
@@ -222,10 +294,37 @@ KEY2:		li t1,0xFF200000	# carrega o endereço de controle do KDMMIO
 		li t0,'d'
 		beq t2,t0,CHAR_DIR	#se pressionar d
 		
+		li t0,' '
+		beq t2,t0,PLAYER_ATTACK
+		
 		
 		
 		
 FIM:		ret
+
+PLAYER_ATTACK:
+		la t0,PLAYER_ATT	#carrega flag
+		lw t1,0(t0)
+		bnez t1,FIM_PLAYER_ATTACK	#se for 1 ja ta atacando
+		
+		li t1,1			#muda flag pra 1 pra atacar
+		sw t1,0(t0)
+		
+		li t1,10		#10 frames de ataque
+		la t0,ATT_TIMER
+		sw t1,0(t0)
+		
+		li a7, 31       
+		li a0, 45       
+		li a1, 80       
+		li a2, 0        
+		li a3, 127      
+		ecall
+		
+FIM_PLAYER_ATTACK:
+		ret
+		
+		
 
 CHECK_DRONE_COLLISION:
 		la t0,DRONE_FLAG	#carregando flag do drone
@@ -254,12 +353,11 @@ SKIP_NEG_X:	li t6,24		#24=limite de colisao
 		
 SKIP_NEG_Y:	bge t5,t6,FIM_COL_DRONE #se for maior que 24 n colidiu y
 
-######EDITADO JL######
 TAKE_DAMAGE:	la t0,INV_TIMER		#carregando tempo de invencibilidade
 		lw t1,0(t0)
 		bnez t1,FIM_TAKE_DAMAGE	#se >0 ta invencivel, logo n toma dano
 		
-		li a7,31
+		li a7,31		#som
 		li a0,60
 		li a1,200
 		li a2,120
@@ -271,7 +369,7 @@ TAKE_DAMAGE:	la t0,INV_TIMER		#carregando tempo de invencibilidade
 		addi t1,t1,-1		#decrementa vida
 		sw t1,0(t0)
 		
-		li t2,60
+		li t2,35
 		la t0,INV_TIMER		#tempo de invencibilidade apos tomar dano
 		sw t2,0(t0)
 		
@@ -282,9 +380,7 @@ GAME_OVER:	#implementar aqui oq acontece no game over
 		li a7,10		#por enquanto so finalizando programa
 		ecall
 FIM_TAKE_DAMAGE:
-######EDITADO JL######
 
-		
 FIM_COL_DRONE:	ret
 
 UPDATE_DRONE:	la t0,DRONE_FLAG	#carrega flag
@@ -314,61 +410,146 @@ INVERTE_DRONE_Y:
 		
 FIM_DRONE:	ret
 
-CHAR_CIMA:	la t0,CHAR_POS
-		la t1,OLD_CHAR_POS
-		lw t2,0(t0)
-		sw t2,0(t1)
+CHAR_CIMA:	
+		addi sp,sp,-4
+		sw ra,0(sp)
 		
-		lh t1,2(t0)
+		la t0,CHAR_POS
+		lh t1,0(t0)
+		lh t2,2(t0)
 		
-		li t5,32		#borda de cima
-		ble t1,t5,FIM_MOVIMENTO
+		addi t3,t2,-32
 		
-		addi t1,t1,-32		#sobe um bloco
-		sh t1,2(t0)
+		mv a1,t1
+		mv a2,t3
+		
+		addi sp, sp, -16
+    		sw t0, 0(sp)
+  		sw t1, 4(sp)
+  		sw t2, 8(sp)
+    		sw t3, 12(sp)
+    		
+    		call IS_POSITION_SOLID
+    		
+    		lw t3, 12(sp)
+		lw t2, 8(sp)
+		lw t1, 4(sp)
+		lw t0, 0(sp)
+		addi sp, sp, 16
+		
+		bnez a0,BLOQUEADO_CIMA
+		
+		sh t3,2(t0)
+		
+BLOQUEADO_CIMA: lw ra,0(sp)
+		addi sp,sp,4
 		ret
 
-CHAR_ESQ:	la t0,CHAR_POS
-		la t1,OLD_CHAR_POS
-		lw t2,0(t0)
-		sw t2,0(t1)
+CHAR_ESQ:	
+		addi sp,sp,-4
+		sw ra,0(sp)
 		
+		la t0,CHAR_POS
 		lh t1,0(t0)
+		lh t2,2(t0)
 		
-		li t5,32		#borda da esquerda
-		ble t1,t5,FIM_MOVIMENTO
+		addi t3,t1,-32
 		
-		addi t1,t1,-32		#um bloco pra esquerda
-		sh t1,0(t0)
+		mv a1,t3
+		mv a2,t2
+		
+		addi sp, sp, -16
+    		sw t0, 0(sp)
+  		sw t1, 4(sp)
+  		sw t2, 8(sp)
+    		sw t3, 12(sp)
+    		
+    		call IS_POSITION_SOLID
+    		
+    		lw t3, 12(sp)
+		lw t2, 8(sp)
+		lw t1, 4(sp)
+		lw t0, 0(sp)
+		addi sp, sp, 16
+		
+		bnez a0,BLOQUEADO_ESQ
+		
+		sh t3,0(t0)
+		
+BLOQUEADO_ESQ:	lw ra,0(sp)
+		addi sp,sp,4
 		ret
 		
-CHAR_BAIXO:	la t0,CHAR_POS
-		la t1,OLD_CHAR_POS
-		lw t2,0(t0)
-		sw t2,0(t1)
+CHAR_BAIXO:	
+		addi sp,sp,-4
+		sw ra,0(sp)
 		
-		lh t1,2(t0)
+		la t0,CHAR_POS
+		lh t1,0(t0)
+		lh t2,2(t0)
 		
-		li t5,336		#borda de baixo
-		bge t1,t5,FIM_MOVIMENTO
+		addi t3,t2,32
 		
-		addi t1,t1,32		#desce um bloco
-		sh t1,2(t0)
+		mv a1,t1
+		mv a2,t3
+		
+		addi sp, sp, -16
+    		sw t0, 0(sp)
+  		sw t1, 4(sp)
+  		sw t2, 8(sp)
+    		sw t3, 12(sp)
+    		
+    		call IS_POSITION_SOLID
+    		
+    		lw t3, 12(sp)
+		lw t2, 8(sp)
+		lw t1, 4(sp)
+		lw t0, 0(sp)
+		addi sp, sp, 16
+		
+		bnez a0,BLOQUEADO_BAIXO
+		
+		sh t3,2(t0)
+		
+BLOQUEADO_BAIXO:lw ra,0(sp)
+		addi sp,sp,4
 		ret
 		
 		
-CHAR_DIR:	la t0,CHAR_POS
-		la t1,OLD_CHAR_POS
-		lw t2,0(t0)
-		sw t2,0(t1)
+CHAR_DIR:	
+		addi sp,sp,-4
+		sw ra,0(sp)
+		
+		la t0,CHAR_POS
 		
 		lh t1,0(t0)
+		lh t2,2(t0)
 		
-		li t5,560		#borda da direita
-		bge t1,t5,FIM_MOVIMENTO
+		addi t3,t1,32
 		
-		addi t1,t1,32		#um bloco pra direita
-		sh t1,0(t0)
+		mv a1,t3
+		mv a2,t2
+		
+		addi sp, sp, -16
+    		sw t0, 0(sp)
+  		sw t1, 4(sp)
+  		sw t2, 8(sp)
+    		sw t3, 12(sp)
+    		
+    		call IS_POSITION_SOLID
+    		
+    		lw t3, 12(sp)
+		lw t2, 8(sp)
+		lw t1, 4(sp)
+		lw t0, 0(sp)
+		addi sp, sp, 16
+		
+		bnez a0,BLOQUEADO_DIR
+		
+		sh t3,0(t0)
+		
+BLOQUEADO_DIR:	lw ra,0(sp)
+		addi sp,sp,4
 		ret
 		
 FIM_MOVIMENTO:	ret
@@ -424,11 +605,223 @@ PRINT_LINHA:	lw t6,0(t1)		#carregando o byte inicial dps das 2 words
 		
 		ret
 		
+CHECK_ATT_COLLISION:
+		la t0,PLAYER_ATT	#flag de ataque
+		lw t1,0(t0)
+		beqz t1, FIM_ATT_COLLISION
+		
+		la t0,CHAR_POS		#posicao personagem
+		lh t1,0(t0)
+		lh t2,2(t0)
+		
+		la t0,DRONE_POS		#posicao drone
+		lh t3,0(t0)
+		lh t4,2(t0)
+		
+		sub t5,t1,t3
+		bgez t5,SKIP_NEG_X_ATT
+		neg t5,t5
+SKIP_NEG_X_ATT:
+		li t6,40		#se a distancia for 40 ou menos ataca
+		bge t5,t6,FIM_ATT_COLLISION
+		
+		sub t5,t2,t4
+		bgez t5,SKIP_NEG_Y_ATT
+		neg t5,t5
+SKIP_NEG_Y_ATT:
+		bge t5,t6,FIM_ATT_COLLISION
+		
+		la t0,DRONE_FLAG
+		sw zero,0(t0)
+		
+		##adicionar efeito visual,etc##
+		
+		ret
+		
+FIM_ATT_COLLISION:
+		ret
+		
+DRAW_SCENARIO:				#logica de verificar no mapa de colisão se tem ou nao parede/pilar/moeda/porta
+		addi sp,sp,-4
+		sw ra,0(sp)
+	
+		la s1, CURRENT_MAP_COL_PTR
+		lw s1,0(s1)
+		li s2,0
+		li s3,0
+		li s4,13
+		li s5,20
+	
+LOOP_Y_SCENARIO:
+		bge s2,s4, FIM_DRAW_SCENARIO
+		li s3,0
+LOOP_X_SCENARIO:
+		bge s3,s5,NEXT_LINE_SCENARIO
+		
+		lb t0,0(s1)
+		beqz t0,SKIP_DRAW_TILE
+		
+		li t1,1
+		beq t0,t1,PREP_PILAR
+		li t2,2
+		beq t0,t2,PREP_COIN
+		li t3,3
+		beq t0,t3,PREP_DOOR
+		j SKIP_DRAW_TILE
+		
+PREP_PILAR:#1
+		la a0,pilar1
+		j DRAW_TILE_NOW
+PREP_COIN:#2
+		la a0,rupee
+		j DRAW_TILE_NOW
+PREP_DOOR:#3
+		la a0,porta
+		j DRAW_TILE_NOW
+		
+DRAW_TILE_NOW:				#printa o tile daquela posição
+		slli a1,s3,5
+		slli a2,s2,5
+		mv a3,s0
+		
+		addi sp,sp,-20
+		sw s1,0(sp)
+		sw s2,4(sp)
+		sw s3,8(sp)
+		sw s4,12(sp)
+		sw s5,16(sp)
+				
+		call PRINT
+		
+		lw s5,16(sp)
+		lw s4,12(sp)
+		lw s3,8(sp)
+		lw s2,4(sp)
+		lw s1,0(sp)
+		addi sp,sp,20
+SKIP_DRAW_TILE:
+		addi s1,s1,1
+		addi s3,s3,1
+		j LOOP_X_SCENARIO
+NEXT_LINE_SCENARIO:
+		addi s2,s2,1
+		j LOOP_Y_SCENARIO
+FIM_DRAW_SCENARIO:
+		lw ra,0(sp)
+		addi sp,sp,4
+		ret
+		
+IS_POSITION_SOLID:			#se for 1=pilar ou 4=parede n pode passar
+		srli t1,a1,5		#converte pixel X para grid X (/32)
+		srli t2,a2,5		#converte pixel Y para grid Y (/32)
+		
+		#calcula o indice do array no mapa
+		la t3,MAP_WIDTH
+		lw t3,0(t3)
+		mul t2,t2,t3
+		add t2,t2,t1
+		
+		la t3,CURRENT_MAP_COL_PTR
+		lw t3,0(t3)
+		add t3,t3,t2
+		lb a0,0(t3)
+		
+		li t1,1			#pilar
+		beq a0,t1, TILE_SOLIDO
+		
+		li t1,4			#parede
+		beq a0,t1, TILE_SOLIDO
+		
+		li a0,0			#n tem bloqueio
+		ret
+		
+TILE_SOLIDO:
+		li a0,1			#bloqueado
+		ret
+		
+CHECK_INTERACTION:
+		addi sp,sp,-4
+		sw ra,0(sp)
+		
+		la t0,CHAR_POS
+		lh t1,0(t0)
+		lh t2,2(t0)
+		addi t1,t1,16		#centro do personagem +16 pixels
+		addi t2,t2,16
+		
+		srli t1,t1,5		#convertendo pro grid
+		srli t2,t2,5
+		
+		la t3,MAP_WIDTH
+		lw t3,0(t3)
+		mul t2,t2,t3
+		add t2,t2,t1
+		la t3,CURRENT_MAP_COL_PTR
+		lw t3,0(t3)
+		add t3,t3,t2		#t3 é o tile que o jogador ta em cima
+		
+		lb t4,0(t3)		#le o valor do tile
+		
+		li t5,2			#2 é moeda
+		beq t4,t5,INTERACT_COIN
+		
+		li t5,3			#3 é porta
+		beq t4,t5,INTERACT_DOOR
+		
+		j FIM_INTERACTION
 
+INTERACT_COIN:	sb zero,0(t3)
+		#adicionar incrementar moeda no contador
+		li a7, 31
+    		li a0, 75     
+    		li a1, 200    
+    		li a2, 0      
+    		li a3, 100    
+    		ecall
+    		
+    		j FIM_INTERACTION
+INTERACT_DOOR:	
+		#adicionar aqui transição pra prox fase
+		li a7, 31
+	    	li a0, 55
+	    	li a1, 500    
+	    	li a2, 0
+	    	li a3, 100
+	    	ecall
+	    	j FIM_INTERACTION
+
+FIM_INTERACTION:
+    		lw ra, 0(sp)
+    		addi sp, sp, 4
+    		ret
+    		
+LOAD_LEVEL:
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		
+		addi t1,t1,-1
+		slli t1,t1,2
+		
+		la t2,LEVEL_BG_LIST
+		add t2,t2,t1
+		lw t3,0(t2)
+		la t4,CURRENT_MAP_BG_PTR
+		sw t3,0(t4)
+		
+		la t2,LEVEL_COL_LIST
+		add t2,t2,t1
+		lw t3,0(t2)
+		la t4,CURRENT_MAP_COL_PTR
+		sw t3,0(t4)
+		
+		ret
+		
+		
 .data
-.include "map1.data"
+#Sprites
 .include "char.data"
-.include "tile.s"
 .include "pilar1.data"
 .include "teste.data"
-
+.include "rupee.data"
+.include "porta.data"
+		
