@@ -184,8 +184,18 @@ SKIP_SWORD_DRAW:
 		lw t1,0(t0)
 		beqz t1,SKIP_DRONE_DRAW
 		
+		la t0,DRONE_VEL
+		lw t1,0(t0)
+		bgez t1,USE_DRONE_RIGHT
+		
+USE_DRONE_LEFT:	
+		la a0,drone1
+		j DRAW_DRONE_FINAL
+USE_DRONE_RIGHT:
+		la a0 drone2
+		
+DRAW_DRONE_FINAL:
 		la t0,DRONE_POS
-		la a0,char		#imagem do drone
 		lh a1,0(t0)
 		lh a2,2(t0)
 		mv a3,s0
@@ -367,7 +377,7 @@ SETUP_LEVEL_2:
 SPAWN_LADDER:
 		la t0,CHAR_POS
 		li t3,192
-		li t4,68
+		li t4,64
 		sh t3,0(t0)
 		sh t4,2(t0)
 		
@@ -409,7 +419,7 @@ STATE_ITEM_COLLECTED:
 		beqz t1,SKIP_DRONE_POSE
 		
 		la t0,DRONE_POS
-		la a0,char
+		la a0,drone2
 		lh a1,0(t0)
 		lh a2,2(t0)
 		mv a3,s0
@@ -583,7 +593,7 @@ CHECK_TURRET_ALIVE:
 		lh t2,0(t0)
 		lh t3,2(t0)
 		
-		addi t2,t2,8		#fazendo sair da frente da turret
+		addi t2,t2,12		#fazendo sair da frente da turret
 		addi t3,t3,32
 		
 		la t0,BULLET_POS
@@ -614,7 +624,7 @@ RESET_BULLET:
 		j FIM_TURRET_FUNC
 DRAW_BULLET:
 		la t0,BULLET_POS
-		la a0,teste		#mudar sprite de tiro#######################
+		la a0,bullet		#mudar sprite de tiro#######################
 		lh a1,0(t0)
 		lh a2,2(t0)
 		mv a3,s0
@@ -656,7 +666,9 @@ POS_Y_B:
 		#se chegou aqui acertou o player#
 		la t0,BULLET_ACTIVE
 		sw zero,0(t0)
-		j TAKE_DAMAGE
+		la t0,HEALTH_PLAYER
+		sw zero,0(t0)
+		j GAME_OVER
 FIM_COL_BULLET:
 		ret
 
@@ -1063,13 +1075,40 @@ IS_POSITION_SOLID:			#se for 1=pilar ou 4=parede n pode passar
 		la t3,CURRENT_MAP_COL_PTR
 		lw t3,0(t3)
 		add t3,t3,t2
-		lb a0,0(t3)
+		lb t0,0(t3)
 		
 		li t1,1			#pilar
-		beq a0,t1, TILE_SOLIDO
+		beq t0,t1, TILE_SOLIDO
 		
 		li t1,4			#parede
-		beq a0,t1, TILE_SOLIDO
+		beq t0,t1, TILE_SOLIDO
+		
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		li t2,2
+		bne t1,t2,TILE_VAZIO
+		
+		la t0,TURRET_FLAG
+		lw t1,0(t0)
+		beqz t1,TILE_VAZIO
+		
+		la t0,TURRET_POS
+		lh t3,0(t0)
+		lh t4,2(t0)
+		sub t5,a1,t3
+		bgez t5,CHECK_POS_X
+		neg t5,t5
+CHECK_POS_X:
+		li t6,32
+		bge t5,t6,TILE_VAZIO
+		
+		sub t5,a2,t4
+		bgez t5,CHECK_POS_Y
+		neg t5,t5
+CHECK_POS_Y:
+		bge t5,t6,TILE_VAZIO
+		j TILE_SOLIDO
+TILE_VAZIO:
 		
 		li a0,0			#n tem bloqueio
 		ret
@@ -1267,8 +1306,8 @@ DRAW_FULL_HUD:
 		lw t1,0(t0)
 		bnez t1,DRAW_SHIELD_BOX
 		
-		la a0,sword #colocar aqui sprite de espada
-		li a1,412
+		la a0,sword 		#colocar aqui sprite de espada
+		li a1,414
 		li a2,430
 		mv a3,s0
 		call PRINT
@@ -1442,9 +1481,62 @@ TAKE_DAMAGE:	la t0,INV_TIMER		#carregando tempo de invencibilidade
 		blez t1,GAME_OVER	#se chegar a 0, game over
 		
 		j FIM_TAKE_DAMAGE
-GAME_OVER:	#implementar aqui oq acontece no game over
-		li a7,10		#por enquanto so finalizando programa
+GAME_OVER:	
+		li a7,31		#som
+		li a0,60
+		li a1,200
+		li a2,120
+		li a3,127
 		ecall
+		
+		la a0,gameover
+		li a1,0
+		li a2,0
+		li a3,0
+		call PRINT
+		la a0,gameover
+		li a1,0
+		li a2,0
+		li a3,1
+		call PRINT
+		
+		
+WAIT_FOR_RESTART:
+		li t0,0xFF200000
+		lw t1,0(t0)
+		andi t1,t1,1
+		beqz t1,WAIT_FOR_RESTART
+		
+		lw t2,4(t0)
+		li t3,' '
+		bne t2,t3,WAIT_FOR_RESTART
+		#reinicia o jogo#
+		la t0,HEALTH_PLAYER
+		li t1,3
+		sw t1,0(t0)
+		
+		la t0,BULLET_ACTIVE
+		sw zero,0(t0)
+		
+		la t0,INV_TIMER
+		sw zero,0(t0)
+		
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		la t2,TARGET_LEVEL
+		sw t1,0(t2)
+		
+		la t0,GAME_STATE
+		li t1,3
+		sw t1,0(t0)
+		
+		la t0,TRANSITION_TIMER
+		li t1,30
+		sw t1,0(t0)
+		
+		j GAME_LOOP
+		
+		
 FIM_TAKE_DAMAGE:
 		ret
 
@@ -1467,3 +1559,7 @@ FIM_TAKE_DAMAGE:
 .include "level.data"
 .include "life.data"
 .include "sword.data"
+.include "bullet.data"
+.include "gameover.data"
+.include "drone1.data"
+.include "drone2.data"
