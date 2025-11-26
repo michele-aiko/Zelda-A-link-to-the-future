@@ -3,11 +3,13 @@ CHAR_POS: 	.half 0,192
 OLD_CHAR_POS: 	.half 0,0
 SWORD_ACTIVE: 	.word 1		#flag da espada
 SWORD_POS:	.half 32,192
+SHIELD_ACTIVE:	.word 0
 GAME_STATE:	.word 0		#flag do estado do jogo
 ITEM_TIMER:	.word 0		#tempo que a pose de pegar item vai ficar
 COIN_COUNT:	.word 0
 #VIDA/DANO#
 HEALTH_PLAYER: 	.word 3		#3 de vida inicial
+MAX_HEALTH:	.word 3
 INV_TIMER: 	.word 0		#tempo de invencibilidade
 
 PLAYER_ATT:	.word 0		#0= n atacando 1= atacando
@@ -136,6 +138,9 @@ SKIP_ATT_DECREMENT:
 		li t2,3
 		beq t1,t2,DRAW_SHOP_BG			#se for nivel 3 desenho eh diferente pq eh loja
 		
+		li t2,4
+		beq t1,t2,DRAW_FINAL_BG
+		
 		la a0,CURRENT_MAP_BG_PTR		#carregando o mapa para printar
 		lw a0,0(a0)
 		li a1,0
@@ -151,6 +156,48 @@ DRAW_SHOP_BG:
 		li a2,128
 		mv a3,s0
 		call PRINT
+		j END_DRAW_BG
+
+
+DRAW_FINAL_BG:
+		la a0,CURRENT_MAP_BG_PTR
+		lw a0,0(a0)
+		
+		li a1,96
+		li a2,32
+		mv a3,s0
+		call PRINT_FINAL_LEVEL
+		j END_DRAW_BG
+PRINT_FINAL_LEVEL:
+		li t0,0xFF0
+		add t0,t0,a3
+		slli t0,t0,20
+		add t0,t0,a1
+		li t1,640
+		mul t1,t1,a2
+		add t0,t0,t1
+		
+		addi t1,a0,8
+		
+		li t4,112
+		li t5,352
+		li t2,0
+LOOP_FINAL_Y:
+		li t3,0
+LOOP_FINAL_X:
+		lw t6,0(t1)
+		sw t6,0(t0)
+		
+		addi t0,t0,4
+		addi t1,t1,4
+		addi t3,t3,1
+		blt t3,t4,LOOP_FINAL_X
+		
+		addi t0,t0,640
+		addi t0,t0,-448
+		addi t2,t2,1
+		blt t2,t5,LOOP_FINAL_Y
+		ret
 END_DRAW_BG:
 		
 		call DRAW_SCENARIO
@@ -317,12 +364,13 @@ STATE_TRANSITION_SCREEN:
 		la t0,CURRENT_LEVEL
 		lw t1,0(t0)
 		
+		li t2,4
+		beq t1,t2,SETUP_LEVEL_4
+		
 		li t2,3
 		beq t1,t2,SETUP_LEVEL_3
 		
 		#configurando inimigos por nivel#
-		la t0,CURRENT_LEVEL
-		lw t1,0(t0)
 		
 		li t2,2
 		beq t1,t2,SETUP_LEVEL_2
@@ -393,6 +441,22 @@ SETUP_LEVEL_3:
 		la t0,CHAR_POS
 		li t3,192
 		li t4,320
+		sh t3,0(t0)
+		sh t4,2(t0)
+		
+		j SKIP_LEVEL_CHANGE_TRANSITION
+		
+SETUP_LEVEL_4:
+		la t0,DRONE_FLAG
+		sw zero,0(t0)
+		la t0,TURRET_FLAG
+		sw zero,0(t0)
+		la t0,BULLET_ACTIVE
+		sw zero,0(t0)
+		
+		la t0,CHAR_POS
+		li t3,320
+		li t4,352
 		sh t3,0(t0)
 		sh t4,2(t0)
 		
@@ -666,9 +730,25 @@ POS_Y_B:
 		#se chegou aqui acertou o player#
 		la t0,BULLET_ACTIVE
 		sw zero,0(t0)
+		
+		la t0,SHIELD_ACTIVE
+		lw t1,0(t0)
+		bnez t1,SHIELD_BLOCK
+		
 		la t0,HEALTH_PLAYER
 		sw zero,0(t0)
 		j GAME_OVER
+		
+SHIELD_BLOCK:
+		# Som de defesa (Metal)
+        	li a7, 31
+        	li a0, 56           # Instrumento (Trumpet/Metal)
+        	li a1, 300          # Duração
+        	li a2, 0
+        	li a3, 127
+        	ecall
+        	
+        	ret
 FIM_COL_BULLET:
 		ret
 
@@ -962,6 +1042,10 @@ CHECK_TURRET_HIT:
 		la t0,TURRET_FLAG
 		lw t3,0(t0)
 		beqz t3,FIM_ATT_COLLISION
+		
+		la t0,SHIELD_ACTIVE
+		lw t3,0(t0)
+		beqz t3,FIM_ATT_COLLISION
 	
 		la t0,TURRET_POS
 		lh t3,0(t0)
@@ -1016,6 +1100,12 @@ LOOP_X_SCENARIO:
 		beq t0,t3,PREP_DOOR
 		li t4,6
 		beq t0,t4,PREP_LADDER
+		li t4,7
+		beq t0,t4,PREP_HEART
+		li t4,8
+		beq t0,t4,PREP_SHIELD
+		li t4,9
+		beq t0,t4,PREP_MERCHANT
 		j SKIP_DRAW_TILE
 		
 PREP_PILAR:#1
@@ -1030,6 +1120,42 @@ PREP_DOOR:#3
 PREP_LADDER:#4	
 		la a0,porta 		#mudar aqui o sprite pra escada
 		j DRAW_TILE_NOW
+PREP_HEART:#7	
+		la a0,NUM_3
+		slli a1,s3,5
+		addi a1,a1,8
+		slli a2,s2,5
+		addi a2,a2,32
+		mv a3,s0
+		
+		addi sp,sp,-4
+		sw ra,0(sp)
+		call PRINT
+		lw ra,0(sp)
+		addi sp,sp,4
+
+		la a0,heart 		
+		j DRAW_TILE_NOW
+PREP_SHIELD:#8
+		la a0,NUM_4
+		slli a1,s3,5
+		addi a1,a1,8
+		slli a2,s2,5
+		addi a2,a2,32
+		mv a3,s0
+		
+		addi sp,sp,-4
+		sw ra,0(sp)
+		call PRINT
+		lw ra,0(sp)
+		addi sp,sp,4
+		
+		la a0,sword 		#mudar aqui o sprite pra escudo
+		j DRAW_TILE_NOW
+PREP_MERCHANT:
+		la a0,char 		#mudar aqui o sprite pro vendedor
+		j DRAW_TILE_NOW
+		
 DRAW_TILE_NOW:				#printa o tile daquela posição
 		slli a1,s3,5
 		slli a2,s2,5
@@ -1149,7 +1275,74 @@ CHECK_INTERACTION:
 		li t5,6
 		beq,t4,t5,INTERACT_LADDER
 		
+		li t5,7
+		beq t4,t5,BUY_HEART
+		
+		li t5,8
+		beq t4,t5,BUY_SHIELD
+		
 		j FIM_INTERACTION
+		
+BUY_HEART:
+		la t0,MAX_HEALTH
+		lw t1,0(t0)
+		li t2,4
+		bge t1,t2,FIM_INTERACTION
+		
+		la t0,COIN_COUNT
+		lw t1,0(t0)
+		li t2,3
+		blt t1,t2,FIM_INTERACTION
+		
+		sub t1,t1,t2
+		sw t1,0(t0)
+		
+		
+		la t0,MAX_HEALTH
+		lw t1,0(t0)
+		addi t1,t1,1
+		sw t1,0(t0)
+		
+		la t2,HEALTH_PLAYER
+		sw t1,0(t2)
+		
+		li a7, 31
+        	li a0, 83           
+		li a1, 500
+        	li a2, 0
+        	li a3, 100
+        	ecall
+        	
+        	sb zero,0(t3)
+        	
+        	j FIM_INTERACTION
+        	
+BUY_SHIELD:
+		la t0,COIN_COUNT
+		lw t1,0(t0)
+		li t2,4
+		blt t1,t2,FIM_INTERACTION
+		
+		sub t1,t1,t2
+		sw t1,0(t0)
+		
+		la t0,SHIELD_ACTIVE
+		li t1,1
+		sw t1,0(t0)
+		
+		
+		li a7, 31
+        	li a0, 83           # Instrumento diferente
+        	li a1, 500
+        	li a2, 0
+        	li a3, 100
+        	ecall
+        	
+        	sb zero,0(t3)
+        	
+        	
+        	
+        	j FIM_INTERACTION
 
 INTERACT_COIN:	sb zero,0(t3)
 		
@@ -1187,6 +1380,9 @@ INTERACT_DOOR:
 	    	
 	    	li t2,2
 	    	beq t1,t2,DOOR_LVL_4
+	    	
+	    	li t2,4
+	    	beq t1,t2,GAME_WIN
 	    	
 	    	j START_TRANSITION
 DOOR_LVL_2:
@@ -1318,6 +1514,17 @@ DRAW_SHIELD_BOX:
 		mv a3,s0
 		call PRINT
 		
+		la t0,SHIELD_ACTIVE
+		lw t1,0(t0)
+		beqz t1,FIM_HUD_ITEMS
+		
+		la a0,sword		#colocar aq o sprite do shield##############
+		li a1,454
+		li a2,430
+		mv a3,s0
+		call PRINT
+FIM_HUD_ITEMS:
+		
 		#ADICIONAR LOGICA DE FLAG AQUI APOS A FLAG#
 		
 		la a0,bag		#desenha bolsa de moedas
@@ -1372,9 +1579,11 @@ DRAW_HUD_HEARTS:
 		la t0,HEALTH_PLAYER
 		lw s2,0(t0)
 		
+		la t0,MAX_HEALTH
+		lw s4,0(t0)
+		
 LOOP_HUD:
-		li t0,3
-		bge s1,t0,FIM_HUD
+		bge s1,s4,FIM_HUD
 	
 		blt s1,s2,USE_FULL_HEART
 		
@@ -1539,6 +1748,39 @@ WAIT_FOR_RESTART:
 		
 FIM_TAKE_DAMAGE:
 		ret
+		
+GAME_WIN:
+		la a0,gameover 			#fazer a tela de vitoria e por aqui
+		li a1,0
+		li a2,0
+		li a3,0
+		call PRINT
+		li a1,0
+		li a2,0
+		li a3,1
+		call PRINT
+		
+		li a7,31
+		li a0,60
+		li a1,1000
+		li a2,0
+		li a3,127
+		ecall
+
+    		
+WAIT_FOR_EXIT:
+		li t0,0xFF200000
+		lw t1,0(t0)
+		andi t1,t1,1
+		beqz t1,WAIT_FOR_EXIT
+		
+		lw t2,4(t0)
+		li t3,' '
+		bne t2,t3,WAIT_FOR_EXIT
+		
+		li a7,10
+		ecall
+	
 
 		
 		
@@ -1563,3 +1805,4 @@ FIM_TAKE_DAMAGE:
 .include "gameover.data"
 .include "drone1.data"
 .include "drone2.data"
+.include "heart.data"
