@@ -7,6 +7,56 @@ SHIELD_ACTIVE:	.word 0
 GAME_STATE:	.word 0		#flag do estado do jogo
 ITEM_TIMER:	.word 0		#tempo que a pose de pegar item vai ficar
 COIN_COUNT:	.word 0
+
+#ANIMAÇÃO#
+PLAYER_DIR:	.word 3		#0 cima 1 esq 2 baixo 3 dir
+PLAYER_MOVING:	.word 0
+ANIM_FRAME:	.word 0
+ANIM_TIMER:	.word 0
+#CIMA#
+char_u0:
+	.include "D0.data"
+char_u1:
+	.include "D1.data"
+char_u2:
+	.include "D2.data"
+char_u3:
+	.include "D3.data"
+#ESQUERDA#
+char_l0:
+	.include "E0.data"
+char_l1:
+	.include "E1.data"
+char_l2:
+	.include "E2.data"
+char_l3:
+	.include "E3.data"
+#BAIXO#
+#char_d0:
+#	.include "D0.data"
+#char_d1:
+#	.include "D1.data"
+#char_d2:
+#	.include "D2.data"
+#char_d3:
+#	.include "D3.data"
+#DIREITA#
+#char_r0:
+#	.include "D0.data"
+#char_r1:
+#	.include "D1.data"
+#char_r2:
+#	.include "D2.data"
+#char_r3:
+#	.include "D3.data"
+#PONTEIROS_POSIÇÃO#
+CHAR_SPRITES_PTR:
+	.word char_u0, char_u1, char_u2, char_u3
+	.word char_l0, char_l1, char_l2, char_l3
+	.word char_u0, char_u1, char_u2, char_u3
+	.word char_u0, char_u1, char_u2, char_u3
+	
+
 #VIDA/DANO#
 HEALTH_PLAYER: 	.word 3		#3 de vida inicial
 MAX_HEALTH:	.word 3
@@ -30,8 +80,6 @@ BULLET_POS:	.half 0,0	#posicao atual da bala
 BULLET_ACTIVE:	.word 0		#0=comecando a atirar 1=viajando
 BULLET_SPEED:	.word 10		#velocidade do tiro
 
-
-
 #Controle de Níveis
 CURRENT_LEVEL:       .word 1	#nivel atual
 LAST_LEVEL:	     .word 1
@@ -39,6 +87,7 @@ TARGET_LEVEL:	     .word 1
 CURRENT_MAP_BG_PTR:  .word 0	#ponteiro para o background atual
 CURRENT_MAP_COL_PTR: .word 0	#ponteiro para o mapa de colisao
 TRANSITION_TIMER:    .word 0	#tempo de transição de tela
+PUZZLE_STATE:	     .word 0
 
 #Endereços			#lista de endereços dos backgrounds
 LEVEL_BG_LIST:
@@ -162,11 +211,16 @@ DRAW_SHOP_BG:
 DRAW_FINAL_BG:
 		la a0,CURRENT_MAP_BG_PTR
 		lw a0,0(a0)
-		
 		li a1,96
 		li a2,32
 		mv a3,s0
 		call PRINT_FINAL_LEVEL
+		
+		la a0,puzzle
+		li a1,252
+		li a2,272
+		mv a3,s0
+		call PRINT
 		j END_DRAW_BG
 PRINT_FINAL_LEVEL:
 		li t0,0xFF0
@@ -249,20 +303,7 @@ DRAW_DRONE_FINAL:
 		call PRINT
 		
 SKIP_DRONE_DRAW:
-		la t0,INV_TIMER		#carregando tempo de invencibilidade
-		lw t1,0(t0)
-		bnez t1,CHECK_BLINK	#se n for zero ainda ta invencivel vai piscar
-		
-		la t0,PLAYER_ATT
-		lw t1,0(t0)
-		bnez t1,DRAW_ATT
-		
-		la t0,CHAR_POS		#carregando personagem pra printar
-		la a0,char
-		lh a1,0(t0)
-		lh a2,2(t0)
-		mv a3,s0
-		call PRINT
+		call DRAW_PLAYER
 		j SKIP_CHAR_DRAW
 		
 CHECK_BLINK:
@@ -455,7 +496,7 @@ SETUP_LEVEL_4:
 		sw zero,0(t0)
 		
 		la t0,CHAR_POS
-		li t3,320
+		li t3,384
 		li t4,352
 		sh t3,0(t0)
 		sh t4,2(t0)
@@ -807,6 +848,9 @@ CHAR_CIMA:
 		addi sp,sp,-4
 		sw ra,0(sp)
 		
+		li a0,0
+		call UPDATE_STEP_ANIM
+		
 		la t0,CHAR_POS
 		lh t1,0(t0)
 		lh t2,2(t0)
@@ -838,9 +882,12 @@ BLOQUEADO_CIMA: lw ra,0(sp)
 		addi sp,sp,4
 		ret
 
-CHAR_ESQ:	
+CHAR_ESQ:
 		addi sp,sp,-4
 		sw ra,0(sp)
+		
+		li a0,1
+		call UPDATE_STEP_ANIM
 		
 		la t0,CHAR_POS
 		lh t1,0(t0)
@@ -877,6 +924,9 @@ CHAR_BAIXO:
 		addi sp,sp,-4
 		sw ra,0(sp)
 		
+		li a0,2
+		call UPDATE_STEP_ANIM
+		
 		la t0,CHAR_POS
 		lh t1,0(t0)
 		lh t2,2(t0)
@@ -912,6 +962,9 @@ BLOQUEADO_BAIXO:lw ra,0(sp)
 CHAR_DIR:	
 		addi sp,sp,-4
 		sw ra,0(sp)
+		
+		li a0,3
+		call UPDATE_STEP_ANIM
 		
 		la t0,CHAR_POS
 		
@@ -1106,10 +1159,36 @@ LOOP_X_SCENARIO:
 		beq t0,t4,PREP_SHIELD
 		li t4,9
 		beq t0,t4,PREP_MERCHANT
+		li t4,10
+		beq t0,t4,PREP_BUTTON
+		li t4,5
+		beq t0,t4,PREP_HIDDEN_DOOR
 		j SKIP_DRAW_TILE
 		
 PREP_PILAR:#1
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		li t2,1
+		beq t1,t2,DRAW_PILAR_1
+		
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		li t2,2
+		beq t1,t2,DRAW_PILAR_2
+		
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		li t2,4
+		beq t1,t2,DRAW_PILAR_4
+		
+DRAW_PILAR_1:
 		la a0,pilar1
+		j DRAW_TILE_NOW
+DRAW_PILAR_2:
+		la a0,pilar2
+		j DRAW_TILE_NOW
+DRAW_PILAR_4:
+		la a0,pilar4
 		j DRAW_TILE_NOW
 PREP_COIN:#2
 		la a0,rupee
@@ -1155,6 +1234,14 @@ PREP_SHIELD:#8
 PREP_MERCHANT:
 		la a0,char 		#mudar aqui o sprite pro vendedor
 		j DRAW_TILE_NOW
+		
+PREP_BUTTON:
+		la a0,porta		#mudar aqui o sprite pro botao
+		j DRAW_TILE_NOW
+PREP_HIDDEN_DOOR:
+		la a0,pilar4
+		j DRAW_TILE_NOW		
+		
 		
 DRAW_TILE_NOW:				#printa o tile daquela posição
 		slli a1,s3,5
@@ -1281,7 +1368,101 @@ CHECK_INTERACTION:
 		li t5,8
 		beq t4,t5,BUY_SHIELD
 		
+		li t5,10
+		beq t4,t5,CHECK_PUZZLE_SEQUENCE
+		
 		j FIM_INTERACTION
+		
+CHECK_PUZZLE_SEQUENCE:
+		la t0,PUZZLE_STATE
+		lw t1,0(t0)
+		
+		la t2,CHAR_POS
+		lh t2,0(t2)
+		
+		li t6,250
+		blt t2,t6,TRY_BTN_1
+		li t6,390
+		bge t2,t6,TRY_BTN_3
+		
+		j TRY_BTN_2
+		
+TRY_BTN_1:
+		li t5,0
+		beq t1,t5,ADVANCE_TO_1
+		
+		li t5,1
+		beq t1,t5,FIM_INTERACTION
+		
+		j RESET_PUZZLE
+		
+ADVANCE_TO_1:
+		li t1,1
+		sw t1,0(t0)
+		j PLAY_CLICK_SOUND
+		
+TRY_BTN_3:
+		li t5,1
+		beq t1,t5,ADVANCE_TO_2
+		
+		li t5,2
+		beq t1,t5,FIM_INTERACTION
+		
+		j RESET_PUZZLE
+ADVANCE_TO_2:
+		li t1,2
+		sw t1,0(t0)
+		j PLAY_CLICK_SOUND
+		
+TRY_BTN_2:
+		li t5,3
+		beq t1,t5,FIM_INTERACTION
+		
+		li t5,2
+		beq t1,t5,ADVANCE_TO_OPEN
+		
+		j RESET_PUZZLE
+ADVANCE_TO_OPEN:
+		li t1,3
+		sw t1,0(t0)
+		
+		addi sp,sp,-4
+		sw ra,0(sp)
+		call UNLOCK_HIDDEN_DOOR
+		lw ra,0(sp)
+		addi sp,sp,4
+		
+		li a7, 31
+        	li a0, 74
+        	li a1, 800
+        	li a2, 0
+        	li a3, 100
+        	ecall
+		
+		j FIM_INTERACTION
+RESET_PUZZLE:
+		beqz t1,FIM_INTERACTION
+		
+		la t0,PUZZLE_STATE
+		sw zero,0(t0)
+		
+		li a7, 31           
+        	li a0, 40
+        	li a1, 300
+        	li a2, 0
+        	li a3, 100
+        	ecall
+        	j FIM_INTERACTION
+        	
+PLAY_CLICK_SOUND:
+		li a7, 31
+        	li a0, 65           
+        	li a1, 200
+        	li a2, 0
+        	li a3, 100
+        	ecall
+        	j FIM_INTERACTION
+		
 		
 BUY_HEART:
 		la t0,MAX_HEALTH
@@ -1690,6 +1871,7 @@ TAKE_DAMAGE:	la t0,INV_TIMER		#carregando tempo de invencibilidade
 		blez t1,GAME_OVER	#se chegar a 0, game over
 		
 		j FIM_TAKE_DAMAGE
+		
 GAME_OVER:	
 		li a7,31		#som
 		li a0,60
@@ -1749,6 +1931,97 @@ WAIT_FOR_RESTART:
 FIM_TAKE_DAMAGE:
 		ret
 		
+UNLOCK_HIDDEN_DOOR:
+		la t0,CURRENT_MAP_COL_PTR
+		lw t0,0(t0)
+		
+		li t1,300
+LOOP_FIND_DOOR:
+		lb t2,0(t0)
+		li t3,5
+		bne t2,t3,NEXT_TILE_DOOR
+		
+		li t3,3
+		sb t3,0(t0)
+NEXT_TILE_DOOR:
+		addi t0,t0,1
+		addi t1,t1,-1
+		bnez t1,LOOP_FIND_DOOR
+		ret
+UPDATE_STEP_ANIM:
+		la t0,PLAYER_DIR
+		lw t1,0(t0)
+		
+		bne a0,t1,NEW_DIRECTION
+		
+		la t2,ANIM_FRAME
+		lw t3,0(t2)
+		addi t3,t3,1
+		
+		andi t3,t3,3
+		sw t3,0(t2)
+		
+		ret
+NEW_DIRECTION:
+		sw a0,0(t0)
+		la t2,ANIM_FRAME
+		sw zero,0(t2)
+		ret
+DRAW_PLAYER:
+		addi sp,sp,-4
+		sw ra,0(sp)
+		
+		la t0,INV_TIMER
+		lw t1,0(t0)
+		bnez t1,HANDLE_BLINK_ANIM
+		
+		la t0,PLAYER_ATT
+		lw t1,0(t0)
+		bnez t1,DRAW_ATT_SPRITE
+NORMAL_DRAW:
+		la t0,PLAYER_DIR
+		lw t1,0(t0)
+		slli t1,t1,2
+		
+		la t0,ANIM_FRAME
+		lw t2,0(t0)
+		
+		add t1,t1,t2
+		slli t1,t1,2
+		
+		la t0,CHAR_SPRITES_PTR
+		add t0,t0,t1
+		lw a0,0(t0)
+		
+		la t0,CHAR_POS
+		lh a1,0(t0)
+		lh a2,2(t0)
+		mv a3,s0
+		
+		call PRINT
+		
+		lw ra,0(sp)
+		addi sp,sp,4
+		ret
+HANDLE_BLINK_ANIM:
+		andi t2,t1,8
+		beqz t2,NORMAL_DRAW
+		
+		lw ra,0(sp)
+		addi sp,sp,4
+		ret
+DRAW_ATT_SPRITE:
+		la a0,teste
+		la t0,CHAR_POS
+		lh a1,0(t0)
+		lh a2,2(t0)
+		mv a3,s0
+		call PRINT
+		
+		lw ra,0(sp)
+		addi sp,sp,4
+		ret
+		
 GAME_WIN:
 		la a0,gameover 			#fazer a tela de vitoria e por aqui
 		li a1,0
@@ -1791,6 +2064,8 @@ WAIT_FOR_EXIT:
 #Sprites
 .include "char.data"
 .include "pilar1.data"
+.include "pilar2.data"
+.include "pilar4.data"
 .include "teste.data"
 .include "rupee.data"
 .include "porta.data"
@@ -1806,3 +2081,4 @@ WAIT_FOR_EXIT:
 .include "drone1.data"
 .include "drone2.data"
 .include "heart.data"
+.include "puzzle.data"
