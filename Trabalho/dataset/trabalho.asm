@@ -7,6 +7,7 @@ SHIELD_ACTIVE:	.word 0
 GAME_STATE:	.word 0		#flag do estado do jogo
 ITEM_TIMER:	.word 0		#tempo que a pose de pegar item vai ficar
 COIN_COUNT:	.word 0
+LAST_ITEM_ID:	.word 0
 
 #ANIMAÇÃO#
 PLAYER_DIR:	.word 3		#0 cima 1 esq 2 baixo 3 dir
@@ -15,13 +16,13 @@ ANIM_FRAME:	.word 0
 ANIM_TIMER:	.word 0
 #CIMA#
 char_u0:
-	.include "D0.data"
+	.include "C0.data"
 char_u1:
-	.include "D1.data"
+	.include "C1.data"
 char_u2:
-	.include "D2.data"
+	.include "C2.data"
 char_u3:
-	.include "D3.data"
+	.include "C3.data"
 #ESQUERDA#
 char_l0:
 	.include "E0.data"
@@ -32,29 +33,41 @@ char_l2:
 char_l3:
 	.include "E3.data"
 #BAIXO#
-#char_d0:
-#	.include "D0.data"
-#char_d1:
-#	.include "D1.data"
-#char_d2:
-#	.include "D2.data"
-#char_d3:
-#	.include "D3.data"
+char_d0:
+	.include "B0.data"
+char_d1:
+	.include "B1.data"
+char_d2:
+	.include "B2.data"
+char_d3:
+	.include "B3.data"
 #DIREITA#
-#char_r0:
-#	.include "D0.data"
-#char_r1:
-#	.include "D1.data"
-#char_r2:
-#	.include "D2.data"
-#char_r3:
-#	.include "D3.data"
+char_r0:
+	.include "D0.data"
+char_r1:
+	.include "D1.data"
+char_r2:
+	.include "D2.data"
+char_r3:
+	.include "D3.data"
 #PONTEIROS_POSIÇÃO#
 CHAR_SPRITES_PTR:
 	.word char_u0, char_u1, char_u2, char_u3
 	.word char_l0, char_l1, char_l2, char_l3
-	.word char_u0, char_u1, char_u2, char_u3
-	.word char_u0, char_u1, char_u2, char_u3
+	.word char_d0, char_d1, char_d2, char_d3
+	.word char_r0, char_r1, char_r2, char_r3
+	
+att_u:	
+	.include "att_c.data"
+att_l:	
+	.include "att_e.data"
+att_d:	
+	.include "att_b.data"
+att_r:	
+	.include "att_d.data"
+
+ATT_SPRITES_PTR:
+	.word att_u, att_l, att_d, att_r
 	
 
 #VIDA/DANO#
@@ -141,10 +154,18 @@ NUMBER_SPRITES:
 .text
 SETUP:
 		call LOAD_LEVEL		#carrega os ponteiros dos mapas
+		li a0,1
+		la a1,DUNGEONTHEME
+		li a2,1
+		li a3,1
+		call PLAY_AUDIO_DEMO
 		
 	
 		
-GAME_LOOP:	la t0,GAME_STATE	#carrega o estado do jogo
+GAME_LOOP:	li a0,0
+		call PLAY_AUDIO_DEMO
+		
+		la t0,GAME_STATE	#carrega o estado do jogo
 		lw t1,0(t0)
 		
 		beqz t1,STATE_PLAYING	#se for 0 quer dizer que esta jogando
@@ -358,6 +379,10 @@ SKIP_CHAR_DRAW:
 		li t1,65		#tempo que vai ficar parado
 		sw t1,0(t0)
 		
+		la t0,LAST_ITEM_ID
+		li t1,1
+		sw t1,0(t0)
+		
 		#tocando som#
 		li a7,31
 		li a0,74
@@ -512,12 +537,28 @@ SKIP_LEVEL_CHANGE_TRANSITION:
 STATE_ITEM_COLLECTED:
 		la a0,CURRENT_MAP_BG_PTR		#carregando o mapa para printar
 		lw a0,0(a0)
+		
+		la t0,CURRENT_LEVEL
+		lw t1,0(t0)
+		li t2,3
+		beq t1,t2,DRAW_ITEM_SHOP_BG
+		
 		li a1,0
 		li a2,0
+		j DRAW_ITEM_BG_FINAL
+		
+DRAW_ITEM_SHOP_BG:
+		call DRAW_BLACK_SCREEN
+		li a1,160
+		li a2,128
+		
+DRAW_ITEM_BG_FINAL:
 		mv a3,s0
 		call PRINT
 		
 		call DRAW_SCENARIO			#redesenha as coisas paradas
+		
+		call DRAW_FULL_HUD
 		
 		la t0,DRONE_FLAG
 		lw t1,0(t0)
@@ -532,22 +573,48 @@ STATE_ITEM_COLLECTED:
 		
 		
 SKIP_DRONE_POSE:
-	
-		la t0,ITEM_TIMER	#carregando tempo de coleta do item
-		lw t1,0(t0)
-		addi t1,t1,-1
-		sw t1,0(t0)
 		
-		beqz t1,END_ITEM_COLLECTED 	#se for zero acabou o tempo
-		
-		la t0,CHAR_POS		#printa a posição de pegar item
-		la a0,char		#aq vai mudar a imagem pra char_item ou algo assim
+		la t0,CHAR_POS
+		la a0,get_item 				#colocar aqui sprite pegando item######
 		lh a1,0(t0)
 		lh a2,2(t0)
 		mv a3,s0
 		call PRINT
 		
+		la t0,LAST_ITEM_ID
+		lw t1,0(t0)
+		
+		li t2,1
+		beq t1,t2,DRAW_HELD_SWORD
+		li t2,2
+		beq t1,t2,DRAW_HELD_SHIELD
+		j UPDATE_ITEM_TIMER
+		
+DRAW_HELD_SWORD:
+		la a0,sword
+		j DRAW_HELD_FINAL
+
+DRAW_HELD_SHIELD:
+		la a0,sword				#mudar para sprite do shield#################
+		j DRAW_HELD_FINAL
+DRAW_HELD_FINAL:
+
+		la t0,CHAR_POS
+		lh a1,0(t0)
+		lh a2,2(t0)
+		addi a2,a2,-24
+		mv a3,s0
+		call PRINT
+UPDATE_ITEM_TIMER:
+		la t0,ITEM_TIMER
+		lw t1,0(t0)
+		addi t1,t1,-1
+		sw t1,0(t0)
+		beqz t1,END_ITEM_COLLECTED
+		
 		j END_FRAME_PROCESSING
+		
+		
 		
 END_ITEM_COLLECTED:
 		la t0,GAME_STATE
@@ -575,7 +642,20 @@ KEY2:		li t1,0xFF200000	# carrega o endereço de controle do KDMMIO
 		lw t0,0(t1)		# Le bit de Controle Teclado
 		andi t0,t0,0x0001	# mascara o bit menos significativo
 	   	beq t0,zero,FIM   	# Se não há tecla pressionada então vai para FIM
-	  	lw t2,4(t1)  		# le o valor da tecla tecla
+	  	lw t2,4(t1)  		# le o valor da tecla
+	  	
+	  	li t0,'1'
+	  	beq t2,t0,WARP_L1
+	  	
+	  	li t0,'2'
+	  	beq t2,t0,WARP_L2
+	  	
+	  	li t0,'3'
+	  	beq t2,t0,WARP_L3
+	  	
+	  	li t0,'4'
+	  	beq t2,t0,WARP_L4
+	  	
 		
 		li t0,'w'
 		beq t2,t0,CHAR_CIMA	#se pressionar w
@@ -596,6 +676,33 @@ KEY2:		li t1,0xFF200000	# carrega o endereço de controle do KDMMIO
 		
 		
 FIM:		ret
+
+WARP_L1:
+		li t1,1
+		j EXECUTE_WARP
+WARP_L2:
+		li t1,2
+		j EXECUTE_WARP
+WARP_L3:
+		li t1,3
+		j EXECUTE_WARP
+WARP_L4:
+		li t1,4
+		j EXECUTE_WARP
+		
+EXECUTE_WARP:
+		la t0,TARGET_LEVEL
+		sw t1,0(t0)
+		
+		la t0,GAME_STATE
+		li t1,3
+		sw t1,0(t0)
+		
+		la t0,TRANSITION_TIMER
+		li t1,30
+		sw t1,0(t0)
+		
+		ret
 
 PLAYER_ATTACK:
 		la t0,PLAYER_ATT	#carrega flag
@@ -672,7 +779,7 @@ CHECK_TURRET_ALIVE:
 		beqz t1,UPDATE_BULLET_ONLY
 		
 		la t0,TURRET_POS
-		la a0,char		#trocar a sprite############################
+		la a0,turret		#trocar a sprite############################
 		lh a1,0(t0)
 		lh a2,2(t0)
 		mv a3,s0
@@ -1232,7 +1339,7 @@ PREP_SHIELD:#8
 		la a0,sword 		#mudar aqui o sprite pra escudo
 		j DRAW_TILE_NOW
 PREP_MERCHANT:
-		la a0,char 		#mudar aqui o sprite pro vendedor
+		la a0,merchant 		#mudar aqui o sprite pro vendedor
 		j DRAW_TILE_NOW
 		
 PREP_BUTTON:
@@ -1511,6 +1618,18 @@ BUY_SHIELD:
 		li t1,1
 		sw t1,0(t0)
 		
+		la t0,GAME_STATE
+		li t1,1
+		sw t1,0(t0)
+		
+		la t0,ITEM_TIMER
+		li t1,65
+		sw t1,0(t0)
+		
+		la t0,LAST_ITEM_ID
+		li t1,2
+		sw t1,0(t0)
+		
 		
 		li a7, 31
         	li a0, 83           # Instrumento diferente
@@ -1545,14 +1664,7 @@ SKIP_INC_COIN:
     		ecall
     		
     		j FIM_INTERACTION
-INTERACT_DOOR:	
-		li a7, 31
-	    	li a0, 55
-	    	li a1, 500    
-	    	li a2, 0
-	    	li a3, 100
-	    	ecall
-	    	
+INTERACT_DOOR:	   	
 	    	la t0,CURRENT_LEVEL
 	    	lw t1,0(t0)
 	    	
@@ -1586,12 +1698,6 @@ START_TRANSITION:
 	    	j FIM_INTERACTION
 	    	
 INTERACT_LADDER:
-		li a7, 31
-        	li a0, 58           # Som diferente da porta
-        	li a1, 500
-        	li a2, 0
-        	li a3, 100
-        	ecall
         	
         	la t0,CURRENT_LEVEL
         	lw t1,0(t0)
@@ -1885,7 +1991,6 @@ GAME_OVER:
 		li a2,0
 		li a3,0
 		call PRINT
-		la a0,gameover
 		li a1,0
 		li a2,0
 		li a3,1
@@ -2011,7 +2116,18 @@ HANDLE_BLINK_ANIM:
 		addi sp,sp,4
 		ret
 DRAW_ATT_SPRITE:
-		la a0,teste
+		addi sp,sp,-4
+		sw ra,0(sp)
+		
+		la t0,PLAYER_DIR
+		lw t1,0(t0)
+		
+		slli t1,t1,2
+		la t0,ATT_SPRITES_PTR
+		add t0,t0,t1
+		
+		lw a0,0(t0)
+		
 		la t0,CHAR_POS
 		lh a1,0(t0)
 		lh a2,2(t0)
@@ -2023,7 +2139,7 @@ DRAW_ATT_SPRITE:
 		ret
 		
 GAME_WIN:
-		la a0,gameover 			#fazer a tela de vitoria e por aqui
+		la a0,win 			
 		li a1,0
 		li a2,0
 		li a3,0
@@ -2063,6 +2179,8 @@ WAIT_FOR_EXIT:
 .data
 #Sprites
 .include "char.data"
+.include "merchant.data"
+.include "get_item.data"
 .include "pilar1.data"
 .include "pilar2.data"
 .include "pilar4.data"
@@ -2082,3 +2200,9 @@ WAIT_FOR_EXIT:
 .include "drone2.data"
 .include "heart.data"
 .include "puzzle.data"
+.include "win.data"
+.include "turret.data"
+.include "DungeonTheme.data"
+.include "audioplayer_PT.s"
+
+
