@@ -152,6 +152,21 @@ NUMBER_SPRITES:
 	.word NUM_0,NUM_1,NUM_2,NUM_3,NUM_4,NUM_5,NUM_6,NUM_7,NUM_8,NUM_9 
 
 .text
+START_SCREEN:
+		la a0,start 		
+		call DRAW_FULL_STATIC
+		
+		#colocar aqui musica#####
+WAIT_START:
+		call WAIT_SPACE
+CUTSCENE:
+		la a0,cutscene1		
+		call DRAW_FULL_STATIC
+		call WAIT_SPACE
+		la a0,cutscene2		
+		call DRAW_FULL_STATIC
+		call WAIT_SPACE
+		j SETUP
 SETUP:
 		call LOAD_LEVEL		#carrega os ponteiros dos mapas
 		li a0,1
@@ -575,7 +590,7 @@ DRAW_ITEM_BG_FINAL:
 SKIP_DRONE_POSE:
 		
 		la t0,CHAR_POS
-		la a0,get_item 				#colocar aqui sprite pegando item######
+		la a0,get_item 				
 		lh a1,0(t0)
 		lh a2,2(t0)
 		mv a3,s0
@@ -595,7 +610,7 @@ DRAW_HELD_SWORD:
 		j DRAW_HELD_FINAL
 
 DRAW_HELD_SHIELD:
-		la a0,sword				#mudar para sprite do shield#################
+		la a0,shield			
 		j DRAW_HELD_FINAL
 DRAW_HELD_FINAL:
 
@@ -1304,7 +1319,7 @@ PREP_DOOR:#3
 		la a0,porta
 		j DRAW_TILE_NOW
 PREP_LADDER:#4	
-		la a0,porta 		#mudar aqui o sprite pra escada
+		la a0,ladder		#mudar aqui o sprite pra escada
 		j DRAW_TILE_NOW
 PREP_HEART:#7	
 		la a0,NUM_3
@@ -1336,14 +1351,14 @@ PREP_SHIELD:#8
 		lw ra,0(sp)
 		addi sp,sp,4
 		
-		la a0,sword 		#mudar aqui o sprite pra escudo
+		la a0,shield 		
 		j DRAW_TILE_NOW
 PREP_MERCHANT:
-		la a0,merchant 		#mudar aqui o sprite pro vendedor
+		la a0,merchant 		
 		j DRAW_TILE_NOW
 		
 PREP_BUTTON:
-		la a0,porta		#mudar aqui o sprite pro botao
+		la a0,button		
 		j DRAW_TILE_NOW
 PREP_HIDDEN_DOOR:
 		la a0,pilar4
@@ -1805,7 +1820,7 @@ DRAW_SHIELD_BOX:
 		lw t1,0(t0)
 		beqz t1,FIM_HUD_ITEMS
 		
-		la a0,sword		#colocar aq o sprite do shield##############
+		la a0,shield		#colocar aq o sprite do shield##############
 		li a1,454
 		li a2,430
 		mv a3,s0
@@ -2137,6 +2152,45 @@ DRAW_ATT_SPRITE:
 		lw ra,0(sp)
 		addi sp,sp,4
 		ret
+DRAW_FULL_STATIC:
+		addi sp,sp,-4
+		sw ra,0(sp)
+		mv t0,a0
+		mv a0,t0
+		li a1,0
+		li a2,0
+		li a3,0
+		call PRINT
+		mv a0,t0
+		li a1,0
+		li a2,0
+		li a3,1
+		call PRINT
+		
+		lw ra,0(sp)
+		addi sp,sp,4
+		ret
+WAIT_SPACE:
+		addi sp,sp,-4
+		sw ra,0(sp)
+LOOP_WAIT_KEY:
+		li t0,0xFF200000
+		lw t1,0(t0)
+		andi t1,t1,1
+		beqz t1,LOOP_WAIT_KEY
+		
+		lw t2,4(t0)
+		li t3,' '
+		bne t2,t3,LOOP_WAIT_KEY
+		
+		li a7,32
+		li a0,200
+		ecall
+		
+		lw ra,0(sp)
+		addi sp,sp,4
+		ret
+		
 		
 GAME_WIN:
 		la a0,win 			
@@ -2182,6 +2236,8 @@ WAIT_FOR_EXIT:
 .include "merchant.data"
 .include "get_item.data"
 .include "pilar1.data"
+.include "ladder.data"
+.include "button.data"
 .include "pilar2.data"
 .include "pilar4.data"
 .include "teste.data"
@@ -2189,6 +2245,8 @@ WAIT_FOR_EXIT:
 .include "porta.data"
 .include "heart_empty.data"
 .include "heart_full.data"
+.include "cutscene1.data"
+.include "cutscene2.data"
 .include "bag.data"
 .include "bluebox.data"
 .include "level.data"
@@ -2201,6 +2259,8 @@ WAIT_FOR_EXIT:
 .include "heart.data"
 .include "puzzle.data"
 .include "win.data"
+.include "start.data"
+.include "shield.data"
 .include "turret.data"
 .include "DungeonTheme.data"
 .include "audioplayer_PT.s"
