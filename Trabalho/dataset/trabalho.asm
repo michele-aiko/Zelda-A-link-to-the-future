@@ -153,19 +153,25 @@ NUMBER_SPRITES:
 
 .text
 START_SCREEN:
+		li a0,1
+		la a1,mainTheme
+		li a2,1
+		li a3,1
+		call PLAY_AUDIO_DEMO
+		
 		la a0,start 		
 		call DRAW_FULL_STATIC
 		
-		#colocar aqui musica#####
-WAIT_START:
-		call WAIT_SPACE
+		call WAIT_SPACE_WITH_MUSIC
+		
 CUTSCENE:
 		la a0,cutscene1		
 		call DRAW_FULL_STATIC
-		call WAIT_SPACE
+		call WAIT_SPACE_WITH_MUSIC
+		
 		la a0,cutscene2		
 		call DRAW_FULL_STATIC
-		call WAIT_SPACE
+		call WAIT_SPACE_WITH_MUSIC
 		j SETUP
 SETUP:
 		call LOAD_LEVEL		#carrega os ponteiros dos mapas
@@ -1014,6 +1020,10 @@ CHAR_ESQ:
 		la t0,CHAR_POS
 		lh t1,0(t0)
 		lh t2,2(t0)
+		
+		
+		li t4,32
+		blt t1,t4,BLOQUEADO_ESQ
 		
 		addi t3,t1,-32
 		
@@ -2170,18 +2180,21 @@ DRAW_FULL_STATIC:
 		lw ra,0(sp)
 		addi sp,sp,4
 		ret
-WAIT_SPACE:
+WAIT_SPACE_WITH_MUSIC:
 		addi sp,sp,-4
 		sw ra,0(sp)
-LOOP_WAIT_KEY:
+LOOP_WAIT_MUSIC:
+		li a0,0
+		call PLAY_AUDIO_DEMO
+		
 		li t0,0xFF200000
 		lw t1,0(t0)
 		andi t1,t1,1
-		beqz t1,LOOP_WAIT_KEY
+		beqz t1,LOOP_WAIT_MUSIC
 		
 		lw t2,4(t0)
 		li t3,' '
-		bne t2,t3,LOOP_WAIT_KEY
+		bne t2,t3,LOOP_WAIT_MUSIC
 		
 		li a7,32
 		li a0,200
@@ -2263,6 +2276,7 @@ WAIT_FOR_EXIT:
 .include "shield.data"
 .include "turret.data"
 .include "DungeonTheme.data"
+.include "mainTheme.data"
 .include "audioplayer_PT.s"
 
 
