@@ -909,13 +909,34 @@ POS_Y_B:
 		j GAME_OVER
 		
 SHIELD_BLOCK:
-		# Som de defesa (Metal)
-        	li a7, 31
-        	li a0, 56           # Instrumento (Trumpet/Metal)
-        	li a1, 300          # Duração
-        	li a2, 0
-        	li a3, 127
-        	ecall
+		li a0, 55       
+		li a1, 160      
+		li a2, 60        
+		li a3, 80       
+		li a7, 31
+		ecall
+		
+		
+		li a7, 32
+		li a0, 20
+		ecall
+		
+		li a0, 67        
+		li a1, 140
+		li a2, 40        
+		li a3, 80
+		li a7, 31
+		ecall
+		li a7, 32
+		li a0, 15
+		ecall
+		
+		li a0, 71        
+		li a1, 120
+		li a2, 20
+		li a3, 80
+		li a7, 31
+		ecall
         	
         	ret
 FIM_COL_BULLET:
@@ -1587,12 +1608,22 @@ RESET_PUZZLE:
         	j FIM_INTERACTION
         	
 PLAY_CLICK_SOUND:
+    		li a0, 64        
+    		li a1, 160       
+    		li a2, 70        
+    		li a3, 81        
 		li a7, 31
-        	li a0, 65           
-        	li a1, 200
-        	li a2, 0
-        	li a3, 100
-        	ecall
+    		ecall
+    		li a7, 32
+    		li a0, 60
+    		ecall
+
+    		li a0, 69       
+    		li a1, 170
+    		li a2, 100       
+    		li a3, 81
+    		li a7, 31
+    		ecall
         	j FIM_INTERACTION
 		
 		
@@ -1619,12 +1650,22 @@ BUY_HEART:
 		la t2,HEALTH_PLAYER
 		sw t1,0(t2)
 		
-		li a7, 31
-        	li a0, 83           
-		li a1, 500
-        	li a2, 0
-        	li a3, 100
-        	ecall
+    		li a0, 60
+    		li a1, 170
+    		li a2, 90
+    		li a3, 81
+    		li a7, 31
+    		ecall
+    		li a7, 32
+    		li a0, 160
+    		ecall
+    
+    		li a0, 64     
+    		li a1, 175
+    		li a2, 90
+    		li a3, 81
+    		li a7, 31
+    		ecall
         	
         	sb zero,0(t3)
         	
@@ -1681,12 +1722,22 @@ INTERACT_COIN:	sb zero,0(t3)
 		sw t1,0(t0)
 SKIP_INC_COIN:
 		
+		li a0, 79      
+		li a1, 100
+		li a2, 1
+		li a3, 120
 		li a7, 31
-    		li a0, 75     
-    		li a1, 200    
-    		li a2, 0      
-    		li a3, 100    
-    		ecall
+		ecall
+		li a7, 32     
+		li a0, 50
+		ecall
+		
+		li a0, 84     
+		li a1, 120
+		li a2, 1
+		li a3, 120
+		li a7, 31
+		ecall
     		
     		j FIM_INTERACTION
 INTERACT_DOOR:	   	
@@ -1983,11 +2034,21 @@ TAKE_DAMAGE:	la t0,INV_TIMER		#carregando tempo de invencibilidade
 		lw t1,0(t0)
 		bnez t1,FIM_TAKE_DAMAGE	#se >0 ta invencivel, logo n toma dano
 		
-		li a7,31		#som
-		li a0,60
-		li a1,200
-		li a2,120
-		li a3,127
+		li a0, 55      
+		li a1, 90      
+		li a2, 81      
+		li a3, 127     
+		li a7, 31
+		ecall
+		li a0, 40
+		li a7, 32
+		ecall
+	
+		li a0, 50     
+		li a1, 120
+		li a2, 81
+		li a3, 127
+		li a7, 31
 		ecall
 		
 		la t0,HEALTH_PLAYER	#carregando vida
@@ -2216,15 +2277,17 @@ GAME_WIN:
 		li a3,1
 		call PRINT
 		
-		li a7,31
-		li a0,60
-		li a1,1000
-		li a2,0
-		li a3,127
-		ecall
+		li a0,1
+		la a1,VictoryMusic
+		li a2,1
+		li a3,1
+		call PLAY_AUDIO_DEMO
 
     		
 WAIT_FOR_EXIT:
+		li a0,0
+		call PLAY_AUDIO_DEMO
+		
 		li t0,0xFF200000
 		lw t1,0(t0)
 		andi t1,t1,1
@@ -2276,6 +2339,7 @@ WAIT_FOR_EXIT:
 .include "shield.data"
 .include "turret.data"
 .include "DungeonTheme.data"
+.include "VictoryMusic.data"
 .include "mainTheme.data"
 .include "audioplayer_PT.s"
 

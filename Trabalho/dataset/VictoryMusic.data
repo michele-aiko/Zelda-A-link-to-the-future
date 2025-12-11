@@ -1,0 +1,248 @@
+VictoryMusic:
+    .byte 67, 0, 110
+    .space 1
+    .word 1000
+    .word 0
+
+    .byte 63, 0, 110
+    .space 1
+    .word 179
+    .word 1125
+
+    .byte 67, 0, 110
+    .space 1
+    .word 179
+    .word 1312
+
+    .byte 63, 0, 110
+    .space 1
+    .word 1312
+    .word 1500
+
+    .byte 67, 0, 110
+    .space 1
+    .word 1000
+    .word 1500
+
+    .byte 72, 0, 110
+    .space 1
+    .word 1312
+    .word 1500
+
+    .byte 63, 0, 110
+    .space 1
+    .word 1304
+    .word 2250
+
+    .byte 62, 0, 110
+    .space 1
+    .word 1117
+    .word 3562
+
+    .byte 58, 0, 110
+    .space 1
+    .word 1937
+    .word 4687
+
+    .byte 63, 0, 110
+    .space 1
+    .word 179
+    .word 5250
+
+    .byte 75, 0, 110
+    .space 1
+    .word 179
+    .word 5250
+
+    .byte 62, 0, 110
+    .space 1
+    .word 179
+    .word 5437
+
+    .byte 74, 0, 110
+    .space 1
+    .word 179
+    .word 5437
+
+    .byte 63, 0, 110
+    .space 1
+    .word 1312
+    .word 5625
+
+    .byte 75, 0, 110
+    .space 1
+    .word 179
+    .word 5625
+
+    .byte 65, 0, 110
+    .space 1
+    .word 179
+    .word 5812
+
+    .byte 77, 0, 110
+    .space 1
+    .word 179
+    .word 5812
+
+    .byte 67, 0, 110
+    .space 1
+    .word 179
+    .word 6000
+
+    .byte 72, 0, 110
+    .space 1
+    .word 1312
+    .word 6000
+
+    .byte 79, 0, 110
+    .space 1
+    .word 1000
+    .word 6000
+
+    .byte 63, 0, 110
+    .space 1
+    .word 179
+    .word 7125
+
+    .byte 65, 0, 110
+    .space 1
+    .word 179
+    .word 7218
+
+    .byte 67, 0, 110
+    .space 1
+    .word 179
+    .word 7312
+
+    .byte 70, 0, 110
+    .space 1
+    .word 85
+    .word 7406
+
+    .byte 72, 0, 110
+    .space 1
+    .word 1312
+    .word 7500
+
+    .byte 29, 0, 110
+    .space 1
+    .word 1312
+    .word 7500
+
+    .byte 41, 0, 110
+    .space 1
+    .word 1312
+    .word 7500
+
+    .byte 68, 0, 110
+    .space 1
+    .word 625
+    .word 9000
+
+    .byte 75, 0, 110
+    .space 1
+    .word 179
+    .word 9000
+
+    .byte 80, 0, 110
+    .space 1
+    .word 625
+    .word 9000
+
+    .byte 41, 0, 110
+    .space 1
+    .word 2812
+    .word 9000
+
+    .byte 56, 0, 110
+    .space 1
+    .word 625
+    .word 9000
+
+    .byte 67, 0, 110
+    .space 1
+    .word 625
+    .word 9750
+
+    .byte 74, 0, 110
+    .space 1
+    .word 179
+    .word 9750
+
+    .byte 79, 0, 110
+    .space 1
+    .word 1000
+    .word 9750
+
+    .byte 55, 0, 110
+    .space 1
+    .word 625
+    .word 9750
+
+    .byte 65, 0, 110
+    .space 1
+    .word 625
+    .word 10500
+
+    .byte 72, 0, 110
+    .space 1
+    .word 1312
+    .word 10500
+
+    .byte 77, 0, 110
+    .space 1
+    .word 179
+    .word 10500
+
+    .byte 53, 0, 110
+    .space 1
+    .word 625
+    .word 10500
+
+    .byte 63, 0, 110
+    .space 1
+    .word 179
+    .word 11250
+
+    .byte 70, 0, 110
+    .space 1
+    .word 625
+    .word 11250
+
+    .byte 75, 0, 110
+    .space 1
+    .word 179
+    .word 11250
+
+    .byte 51, 0, 110
+    .space 1
+    .word 625
+    .word 11250
+
+    .byte 67, 0, 110
+    .space 1
+    .word 625
+    .word 12000
+
+    .byte 72, 0, 110
+    .space 1
+    .word 1312
+    .word 12000
+
+    .byte 79, 0, 110
+    .space 1
+    .word 1000
+    .word 12000
+
+    .byte 36, 0, 110
+    .space 1
+    .word 2812
+    .word 12000
+
+    .byte 48, 0, 110
+    .space 1
+    .word 2812
+    .word 12000
+
+VictoryMusic_FIM:
+    .word 0 0 0
